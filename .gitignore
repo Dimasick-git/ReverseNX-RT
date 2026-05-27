@@ -8,3 +8,7 @@ build/
 *.nacp
 
 *.nro
+
+# Local-only commit message scratch file
+.git-commit-msg.txt
+

@@ -1,58 +1,138 @@
-# ReverseNX-RT
+<p align="left">
+<a href="https://github.com/Dimasick-git/ReverseNX-RT/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-GPLv2-blue.svg"></a>
+<a href="https://github.com/Dimasick-git/ReverseNX-RT/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Dimasick-git/ReverseNX-RT?include_prereleases"></a>
+<a href="https://github.com/Dimasick-git/ReverseNX-RT/actions/workflows/build.yml"><img alt="Build" src="https://github.com/Dimasick-git/ReverseNX-RT/actions/workflows/build.yml/badge.svg"></a>
+<a href="https://github.com/Dimasick-git/ReverseNX-RT/actions/workflows/sync_upstream.yml"><img alt="Upstream sync" src="https://github.com/Dimasick-git/ReverseNX-RT/actions/workflows/sync_upstream.yml/badge.svg"></a>
+</p>
 
-Alternative version of ReverseNX that can switch between handheld and docked mode in **R**eal **T**ime.
+# ReverseNX-RT (Ryazhenka edition)
 
-Requires SaltyNX 1.4.3+ and Tesla environment installed. Links at the end of readme.
-
-I'm not planning to add any more functionality to it. Next updates will only contain bug fixes.
-
-Overlay contains multiple modes, from which 2 are main ones, other are error notifications.
-
-[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/N4N5UMFN)
-
-# Main modes:
-- When running game and everything works as should:
-
-![Gra](https://i.imgur.com/ThUbEZ6.jpg) 
-
-You have only two options here:
-* Change system control (It also refers to ReverseNX-Tool flags - f.e. if you have docked flag set for this game in ReverseNX-Tool, when system control is enabled, it will force docked mode)
-* Change mode (doesn't show up if system control is enabled)
-
-Additional options if it's detected that they can be compatible:
-* Change Handheld DDR (doesn't show up if system control is enabled and if game didn't use GetDefaultDisplayResolution even once)
-* Change Docked DDR (doesn't show up if system control is enabled and if game didn't use GetDefaultDisplayResolution even once)
-
-And:
-* Save settings
-
-> DDR
-
-Some games utilize Default Display Resolution (DDR) to set game's output resolution. List of known compatible games can be found [HERE](https://github.com/masagrator/ReverseNX-RT/blob/compatible_games/README.md). Some games may use that function, but do nothing with the result (For example `Dragon Ball: Xenoverse 2`)
+**EN:** Ryazhenka fork of [masagrator/ReverseNX-RT](https://github.com/masagrator/ReverseNX-RT) — the SaltyNX-based Tesla overlay that toggles between Switch handheld and docked mode in real time and overrides default display resolution per-game. Initial code base is [ppkantorski/ReverseNX-RT](https://github.com/ppkantorski/ReverseNX-RT) (his libultrahand rebuild), but daily upstream sync pulls from **masagrator** (the original author) so we follow the canonical project, not ppkantorski's branch. Four substantive changes vs. ppkantorski: (1) `libultrahand` submodule swapped for [`Dimasick-git/libryazhahand`](https://github.com/Dimasick-git/libryazhahand); (2) overlay magic `ULTR` → `RYZH` for Ryazha-stack recognition; (3) full Russian/English UI localisation via `lang/{en,ru}.json`; (4) all `Ultrahand` mentions in code/Makefile/docs renamed to `Ryazhahand`.
 
 ---
 
-# Error notifications:
-- **SaltyNX is not working!** - SaltyNX crashed or is not installed correctly.
-- **Game was closed! Overlay disabled! Exit from overlay and run game first!** - If you were using overlay in last running game and closed game without closing overlay, you need to close overlay to use it again.
-- **ReverseNX-RT is not running!** - plugin was not injected. It's either 32-bit game or is in SaltyNX exceptions list.
-- **Game doesn't support changing modes!** - plugin was injected and is working, but function for checking modes was not used. Either game doesn't have one (which means there is no difference between handheld and docked) or game just checks it later than when you wanted to check (for example game may not use it for few seconds after booting was finished). You need to exit from overlay and run it again later to check if error still occurs...
-- **WRONG MAGIC!** - something went horribly wrong and overlay is reading value from wrong memory position. It should not happen if you are opening overlay after game boot process will finish. It may also happen if you will close overlay before closing game and open it after running next game, this time not compatible with SaltyNX.
-- **Defauly Display Resolution was not checked!** - if it shows up, it means you won't have access to `Change Handheld DDR` and `Change Docked DDR` since resolutions are hardcoded.
+## Что это
 
-# Troubleshooting:
-List of titles having compability issues with ReverseNX-RT:
+Это форк [masagrator/ReverseNX-RT](https://github.com/masagrator/ReverseNX-RT) — Tesla-оверлей для Switch, который через SaltyNX плагин:
 
-| Title | Versions | Why? |
-| ------------- | ------------- | ------------- |
-| Robotics;Notes Elite | 1.0.1 | Broken PopNotificationMessage() thread, not working at all |
+- переключает игру между портативным и доковым режимом в реальном времени (`Change mode`);
+- управляет источником решения о режиме — система vs. оверлей (`Change system control`);
+- меняет Default Display Resolution игры по умолчанию (для совместимых тайтлов);
+- сохраняет настройки на игру в `/SaltySD/plugins/ReverseNX-RT/<TID>.dat`.
 
-Q: Often when I'm closing game, Atmosphere crashes with error 0x41001. Why?
+В Ryazhenka-стеке используется как штатный режимный оверлей рядом с
+[RCU](https://github.com/Dimasick-git/RCU) (clock control), [ovlSysmodules](https://github.com/Dimasick-git/ovlSysmodules) (sysmodule toggle) и
+[Ryazhahand-Overlay](https://github.com/Dimasick-git/Ryazhahand-Overlay) (общий Tesla launcher).
 
-A: Atmosphere 0.12.0 with new options for cheat engine bringed bug that causes showing this error in random instances. For some reason this overlay makes this bug occur more frequently. Either go back to 0.11.1 or update to newer version.
+## Структура форков (важно понять что откуда)
 
-# Links:
+```
+masagrator/ReverseNX-RT       ←  canonical upstream (оригинальный автор)
+        ↓
+        ↓  (5 коммитов libultrahand-патчей)
+        ↓
+ppkantorski/ReverseNX-RT      ←  initial code base (откуда мы клонировали)
+        ↓
+        ↓  (libryazhahand + RYZH + i18n + branding)
+        ↓
+Dimasick-git/ReverseNX-RT     ←  этот форк (Ryazhenka edition)
+        ↑
+        |   daily 03:00 UTC sync через `sync_upstream.yml`
+        |
+masagrator/ReverseNX-RT       ←  pulls from HERE, NOT ppkantorski
+```
 
-- https://github.com/masagrator/SaltyNX/releases
-- https://github.com/WerWolv/nx-ovlloader
-- https://github.com/WerWolv/Tesla-Menu
+Мы взяли ppkantorski'siglio libultrahand-патчи как стартовую базу (чтобы
+не переписывать его работу заново), но дальше отслеживаем оригинал
+masagrator. Если masagrator выпустит баг-фикс — он автоматически придёт
+к нам через PR от sync-бота, не затрагивая наши Ryazha-патчи (защищены
+через [`.github/sync-protected-paths.txt`](.github/sync-protected-paths.txt)).
+
+## Главные отличия от ppkantorski/masagrator
+
+| Что | Где живёт | Зачем |
+|------|-----------|-------|
+| **Submodule `libultrahand` → `libryazhahand`** | `.gitmodules`, `Overlay/Makefile:52` | Канонический submodule всей Ряженки. Source-совместим, `ryazhahand.mk` ≡ `ultrahand.mk`. |
+| **Подпись `ULTR` → `RYZH`** | `Overlay/Makefile`, `printf 'RYZH' >> $@` | Последние 4 байта `.ovl` — overlay magic. Ryazhahand-Overlay узнаёт наши `.ovl` как Ryazha-native. nx-ovlloader сам сигнатуру не валидирует, загрузка не ломается. |
+| **Полная локализация EN/RU** | `Overlay/source/rnxs_lang.{hpp,cpp}` + `lang/{en,ru}.json` | Все 30 UI-строк (заголовок, подзаголовки разрешений, пункты меню, статусные сообщения, режим, DDR) переводятся при старте оверлея. |
+| **Все `Ultrahand` → `Ryazhahand`** | Comments в `Overlay/Makefile`, документация, magic, наш namespace `rnxs::` | Чтобы форк не маскировался под upstream Ultrahand-овский стек. |
+| **Брендинг APP_TITLE** | `Overlay/Makefile:40` | `ReverseNX-RT (Ryazhenka)`, версия `2.2.1+ryazha`. |
+| **Защищённый sync с masagrator** | `.github/workflows/sync_upstream.yml` | Ежедневно 03:00 UTC бот тянет `masagrator/master`, открывает PR. Наши файлы из `.github/sync-protected-paths.txt` остаются нашими. |
+
+## Установка
+
+1. Скачать свежий релиз: [Releases →](https://github.com/Dimasick-git/ReverseNX-RT/releases/latest), файл `ReverseNX-RT-*.zip`.
+2. Распаковать в корень SD-карты с перезаписью. Содержимое лягет в:
+   - `/switch/.overlays/ReverseNX-RT-ovl.ovl`
+   - `/config/ReverseNX-RT/lang/{en,ru}.json`
+3. Дополнительно нужно установить **SaltyNX** (плагин-инжектор для игр) — без него оверлей покажет `SaltyNX не работает!`.
+4. Перезагрузка → открыть Tesla оверлей через `L+DPAD_DOWN+RStick` → выбрать `ReverseNX-RT`.
+
+**Требования**: SaltyNX 1.4.3+, Atmosphère последней версии, [nx-ovlloader (Ryazhenka)](https://github.com/Dimasick-git/nx-ovlloader) или совместимый.
+
+## Использование
+
+Открой оверлей **с игрой запущенной на переднем плане** (overlay-инжектор работает в контексте игрового процесса). Видишь:
+
+| Состояние | Что покажет |
+|-----------|-------------|
+| Игра не запущена | «Игра не запущена! Оверлей отключён.» |
+| Игра запущена, плагин не инжектнут | «Игра запущена. ReverseNX-RT не запущен!» (плагин не сработал — игра 32-бит или в исключениях SaltyNX) |
+| Плагин запущен, но игра не запрашивала режим | «Игра не запрашивала режим!» (выйди из оверлея и подожди пока игра загрузится) |
+| Всё работает | Видишь статус системы / режима / DDR + 5 пунктов меню |
+
+Пункты меню (только при работающем плагине + проверенном режиме):
+
+- **Управление системой** — переключает кто решает режим: система vs оверлей.
+- **Сменить режим** (только если управление НЕ системное) — Docked ↔ Handheld псевдо-переключение.
+- **Разрешение портативное / док** (только если игра использует Default Display Resolution) — выбор из 480p, 540p, 630p, 720p, 810p, 900p, 1080p.
+- **Сохранить настройки** — сохраняет в `/SaltySD/plugins/ReverseNX-RT/<TID>.dat`, применяется при следующем запуске игры.
+
+Если язык консоли = Русский, UI на русском; иначе английский upstream-defaults.
+
+## Список совместимых игр (DDR)
+
+Поддерживается [masagrator'ом в отдельной ветке](https://github.com/masagrator/ReverseNX-RT/blob/compatible_games/README.md) — мы не дублируем, синхронизация это не трогает.
+
+## Локализация
+
+Добавить новый язык — см. [`docs/RU/i18n.md`](docs/RU/i18n.md).
+
+## Сборка
+
+### Через Docker (Windows-friendly)
+
+```powershell
+.\scripts\build.ps1 -Dist
+```
+
+Скрипт сам подтянет `devkitpro/devkita64`, прокинет директорию и выдаст
+`dist/ReverseNX-RT-*.zip` с SHA-256.
+
+### Нативно
+
+```bash
+git clone --recursive https://github.com/Dimasick-git/ReverseNX-RT.git
+cd ReverseNX-RT
+make
+```
+
+Подробнее — [`docs/RU/build.md`](docs/RU/build.md).
+
+## Лицензия
+
+GPL-2.0, наследуется от masagrator/ReverseNX-RT.
+
+## Кредиты
+
+- **masagrator** — оригинальный ReverseNX-RT, SaltyNX, постоянная поддержка.
+- **ppkantorski** — libultrahand-rebuild, рабочая база для нашего форка.
+- **WerWolv** — Tesla overlay framework.
+- **devkitPro** — toolchain.
+- **Dimasick-git (Ryazhenka)** — libryazhahand swap, RYZH сигнатура, EN/RU локализация, CI/CD пайплайн.
+
+## Полезные ссылки
+
+- [masagrator/SaltyNX](https://github.com/masagrator/SaltyNX) (инжектор плагина)
+- [ppkantorski/nx-ovlloader](https://github.com/Dimasick-git/nx-ovlloader) (наш форк loader'а)
+- [WerWolv/Tesla-Menu](https://github.com/WerWolv/Tesla-Menu)

@@ -2,6 +2,7 @@
 #include <exception_wrap.hpp>
 #include <tesla.hpp>    // The Tesla Header
 #include "SaltyNX.h"
+#include "rnxs_lang.hpp"
 #include <dirent.h>
 
 bool _isDocked = false;
@@ -146,12 +147,12 @@ public:
 	virtual tsl::elm::Element* createUI() override {
 		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
 		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("ReverseNX-RT", _isDocked ? "Change Docked Default Display Resolution" : "Change Handheld Default Display Resolution");
+		auto frame = new tsl::elm::OverlayFrame(rnxs::OVERLAY_TITLE, _isDocked ? rnxs::SUBTITLE_DOCKED_RES : rnxs::SUBTITLE_HANDHELD_RES);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 
-		auto *clickableListItem2 = new tsl::elm::ListItem("Default");
+		auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::RES_DEFAULT);
 		clickableListItem2->setClickListener([this](u64 keys) { 
 			if ((keys & HidNpadButton_A) && PluginRunning) {
 				if (_isDocked) ReverseNX_RT->res.docked_res = res_mode_default;
@@ -205,30 +206,30 @@ public:
 	virtual tsl::elm::Element* createUI() override {
 		// A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
 		// If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
-		auto frame = new tsl::elm::OverlayFrame("ReverseNX-RT", APP_VERSION);
+		auto frame = new tsl::elm::OverlayFrame(rnxs::OVERLAY_TITLE, APP_VERSION);
 
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 		
 		list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
 			if (!SaltySD) {
-				renderer->drawString("SaltyNX is not working!", false, x, y+50, 20, renderer->a(0xF33F));
+				renderer->drawString(rnxs::ERR_SALTYNX_NOT_WORKING.c_str(), false, x, y+50, 20, renderer->a(0xF33F));
 			}
 			else if (!check) {
 				if (closed) {
-					renderer->drawString("Game was closed! Overlay disabled!", false, x, y+20, 19, renderer->a(0xF33F));
+					renderer->drawString(rnxs::ERR_GAME_CLOSED.c_str(), false, x, y+20, 19, renderer->a(0xF33F));
 				}
 				else {
-					renderer->drawString("Game is not running! Overlay disabled!", false, x, y+20, 19, renderer->a(0xF33F));
+					renderer->drawString(rnxs::ERR_GAME_NOT_RUNNING.c_str(), false, x, y+20, 19, renderer->a(0xF33F));
 				}
 			}
 			else if (!PluginRunning) {
-				renderer->drawString("Game is running.", false, x, y+20, 20, renderer->a(0xFFFF));
-				renderer->drawString("ReverseNX-RT is not running!", false, x, y+40, 20, renderer->a(0xF33F));
+				renderer->drawString(rnxs::INFO_GAME_RUNNING.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
+				renderer->drawString(rnxs::ERR_PLUGIN_NOT_RUNNING.c_str(), false, x, y+40, 20, renderer->a(0xF33F));
 			}
 			else {
-				renderer->drawString("ReverseNX-RT is running.", false, x, y+20, 20, renderer->a(0xFFFF));
-				if (!(ReverseNX_RT->pluginActive)) renderer->drawString("Game didn't check any mode!", false, x, y+40, 18, renderer->a(0xF33F));
+				renderer->drawString(rnxs::INFO_PLUGIN_RUNNING.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
+				if (!(ReverseNX_RT->pluginActive)) renderer->drawString(rnxs::ERR_NO_MODE_CHECKED.c_str(), false, x, y+40, 18, renderer->a(0xF33F));
 				else {
 					renderer->drawString(SystemChar, false, x, y+42, 20, renderer->a(0xFFFF));
 					renderer->drawString(DockedChar, false, x, y+64, 20, renderer->a(0xFFFF));
@@ -238,8 +239,8 @@ public:
 							renderer->drawString(DockedDDR, false, x, y+108, 20, renderer->a(0xFFFF));
 						}
 						else {
-							renderer->drawString("Default Display Resolution", false, x, y+86, 20, renderer->a(0xFFFF));
-							renderer->drawString("was not checked!", false, x, y+108, 20, renderer->a(0xFFFF));							
+							renderer->drawString(rnxs::INFO_DDR_NOT_CHECKED_LINE1.c_str(), false, x, y+86, 20, renderer->a(0xFFFF));
+							renderer->drawString(rnxs::INFO_DDR_NOT_CHECKED_LINE2.c_str(), false, x, y+108, 20, renderer->a(0xFFFF));							
 						}
 					}
 				}
@@ -249,7 +250,7 @@ public:
 
 		if (PluginRunning && ReverseNX_RT->pluginActive) {
 
-			auto *clickableListItem = new tsl::elm::ListItem("Change system control");
+			auto *clickableListItem = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_SYSTEM);
 			clickableListItem->setClickListener([](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning) {
 					ReverseNX_RT->def = !(ReverseNX_RT->def);
@@ -264,7 +265,7 @@ public:
 
 			if (!(ReverseNX_RT->def)) {
 
-				auto *clickableListItem2 = new tsl::elm::ListItem("Change mode");
+				auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_MODE);
 				clickableListItem2->setClickListener([](u64 keys) { 
 					if ((keys & HidNpadButton_A) && PluginRunning) {
 						ReverseNX_RT->isDocked = !(ReverseNX_RT->isDocked);
@@ -276,7 +277,7 @@ public:
 				list->addItem(clickableListItem2);
 
 				if (ReverseNX_RT->wasDDRused) {
-					auto *clickableListItem3 = new tsl::elm::ListItem("Change Handheld DDR");
+					auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_HANDHELD_DDR);
 					clickableListItem3->setClickListener([](u64 keys) { 
 						if ((keys & HidNpadButton_A) && PluginRunning) {
 							tsl::changeTo<ResolutionModeMenu>(false);
@@ -287,7 +288,7 @@ public:
 					});
 					list->addItem(clickableListItem3);
 
-					auto *clickableListItem4 = new tsl::elm::ListItem("Change Docked DDR");
+					auto *clickableListItem4 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_DOCKED_DDR);
 					clickableListItem4->setClickListener([](u64 keys) { 
 						if ((keys & HidNpadButton_A) && PluginRunning) {
 							tsl::changeTo<ResolutionModeMenu>(true);
@@ -300,12 +301,12 @@ public:
 				}
 			}
 
-			auto *clickableListItem3 = new tsl::elm::ListItem("Save current settings");
+			auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_SAVE);
 			clickableListItem3->setClickListener([](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning) {
 					if (writeSave())
-						snprintf(saveChar, sizeof(saveChar), "Settings saved successfully!");
-					else snprintf(saveChar, sizeof(saveChar), "Saving settings failed!");
+						snprintf(saveChar, sizeof(saveChar), "%s", rnxs::MSG_SAVED_OK.c_str());
+					else snprintf(saveChar, sizeof(saveChar), "%s", rnxs::MSG_SAVED_FAIL.c_str());
 					return true;
 				}
 				
@@ -337,22 +338,22 @@ public:
 				_isDocked = ReverseNX_RT->isDocked;
 				i = 0;
 				
-				if (_def) sprintf(SystemChar, "Controlled by system: Yes");
-				else sprintf(SystemChar, "Controlled by system: No");
+				if (_def) sprintf(SystemChar, "%s", rnxs::STATUS_SYS_YES.c_str());
+				else sprintf(SystemChar, "%s", rnxs::STATUS_SYS_NO.c_str());
 
 				if (_def) {
-					if (_isDocked) sprintf(DockedChar, "Mode: Docked");
-					else sprintf(DockedChar, "Mode: Handheld");
+					if (_isDocked) sprintf(DockedChar, "%s", rnxs::MODE_DOCKED.c_str());
+					else sprintf(DockedChar, "%s", rnxs::MODE_HANDHELD.c_str());
 				}
 				else {
-					if (_isDocked) sprintf(DockedChar, "Mode: Fake Docked");
-					else sprintf(DockedChar, "Mode: Fake Handheld");
+					if (_isDocked) sprintf(DockedChar, "%s", rnxs::MODE_FAKE_DOCKED.c_str());
+					else sprintf(DockedChar, "%s", rnxs::MODE_FAKE_HANDHELD.c_str());
 				}
 
-				if (!ReverseNX_RT->res.handheld_res) strcpy(HandheldDDR, "Handheld DDR: Default");
-				else snprintf(HandheldDDR, sizeof(HandheldDDR), "Handheld DDR: %dx%d", resolutions[ReverseNX_RT->res.handheld_res].first, resolutions[ReverseNX_RT->res.handheld_res].second);
-				if (!ReverseNX_RT->res.docked_res) strcpy(DockedDDR, "Docked DDR: Default");
-				else snprintf(DockedDDR, sizeof(DockedDDR), "Docked DDR: %dx%d", resolutions[ReverseNX_RT->res.docked_res].first, resolutions[ReverseNX_RT->res.docked_res].second);
+				if (!ReverseNX_RT->res.handheld_res) snprintf(HandheldDDR, sizeof(HandheldDDR), "%s", rnxs::HANDHELD_DDR_DEFAULT.c_str());
+				else snprintf(HandheldDDR, sizeof(HandheldDDR), "%s%dx%d", rnxs::HANDHELD_DDR_PREFIX.c_str(), resolutions[ReverseNX_RT->res.handheld_res].first, resolutions[ReverseNX_RT->res.handheld_res].second);
+				if (!ReverseNX_RT->res.docked_res) snprintf(DockedDDR, sizeof(DockedDDR), "%s", rnxs::DOCKED_DDR_DEFAULT.c_str());
+				else snprintf(DockedDDR, sizeof(DockedDDR), "%s%dx%d", rnxs::DOCKED_DDR_PREFIX.c_str(), resolutions[ReverseNX_RT->res.docked_res].first, resolutions[ReverseNX_RT->res.docked_res].second);
 			}
 			else i++;
 		}
@@ -376,7 +377,7 @@ public:
 	// Called when this Gui gets loaded to create the UI
 	// Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
 	virtual tsl::elm::Element* createUI() override {
-		auto frame = new tsl::elm::OverlayFrame("ReverseNX-RT", APP_VERSION);
+		auto frame = new tsl::elm::OverlayFrame(rnxs::OVERLAY_TITLE, APP_VERSION);
 		return frame;
 	}
 
@@ -391,6 +392,23 @@ class OverlayTest : public tsl::Overlay {
 public:
 	// libtesla already initialized fs, hid, pl, pmdmnt, hid:sys and set:sys
 	virtual void initServices() override {
+
+		// Ryazhenka: resolve system language and load lang/<code>.json
+		// in its own sm session before any UI element is drawn.
+		tsl::hlp::doWithSmSession([]{
+			u64 langCode = 0;
+			SetLanguage lang = SetLanguage_ENUS;
+			if (R_SUCCEEDED(setInitialize())) {
+				if (R_SUCCEEDED(setGetSystemLanguage(&langCode))) {
+					setMakeLanguage(langCode, &lang);
+				}
+				setExit();
+			}
+			switch (lang) {
+				case SetLanguage_RU: rnxs::loadLanguage("ru"); break;
+				default:             rnxs::loadLanguage("en"); break;
+			}
+		});
 
 		tsl::hlp::doWithSmSession([]{
 			

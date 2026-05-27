@@ -37,8 +37,9 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-APP_TITLE	:=	ReverseNX-RT
-APP_VERSION	:=	2.2.1+
+APP_TITLE	:=	ReverseNX-RT (Ryazhenka)
+APP_AUTHOR	:=	Dimasick-git (Ryazhenka fork; tracks masagrator/ReverseNX-RT)
+APP_VERSION	:=	2.2.1+ryazha
 
 TARGET		:=	ReverseNX-RT-ovl
 BUILD		:=	build
@@ -48,8 +49,9 @@ INCLUDES	:=	include libs/Atmosphere-libs/libstratosphere/source/dmnt libs/Atmosp
 
 NO_ICON		:=  1
 
-# This location should reflect where you place the libultrahand directory (lib can vary between projects).
-include ${TOPDIR}/libs/libultrahand/ultrahand.mk
+# Ryazhenka: swapped ppkantorski/libultrahand for our drop-in fork
+# Dimasick-git/libryazhahand (same API/namespaces, ryazhahand.mk ≡ ultrahand.mk).
+include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -66,10 +68,12 @@ CFLAGS		+= $(INCLUDE) -D__SWITCH__ -DAPP_VERSION="\"$(APP_VERSION)\""
 
 
 #---------------------------------------------------------------------------------
-# options for libultrahand
+# options for libryazhahand (was libultrahand in upstream)
 #---------------------------------------------------------------------------------
 
-# Overlay UI config path
+# Overlay UI config path. Kept as /config/ReverseNX-RT/ — the project
+# already used a project-specific config root (not /config/ultrahand/),
+# so renaming would only break user configs.
 UI_OVERRIDE_PATH := /config/ReverseNX-RT/
 CFLAGS += -DUI_OVERRIDE_PATH="\"$(UI_OVERRIDE_PATH)\""
 
@@ -92,7 +96,9 @@ CXXFLAGS := $(CFLAGS) -std=c++26 -Wno-dangling-else -ffast-math -fno-unwind-tabl
 ASFLAGS		:= -g $(ARCH)
 LDFLAGS		+= -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS		:= -lnx
+# Ryazhenka: libryazhahand pulls in PNG wallpaper support (loadPngToRGBA4444),
+# curl, minizip and mbedtls helpers. --as-needed will drop unused refs anyway.
+LIBS		:= -lpng16 -lcurl -lz -lminizip -lmbedtls -lmbedx509 -lmbedcrypto -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -214,11 +220,14 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 all		: $(OUTPUT).ovl
 
-$(OUTPUT).ovl	: $(OUTPUT).elf $(OUTPUT).nacp 
+$(OUTPUT).ovl	: $(OUTPUT).elf $(OUTPUT).nacp
 	@elf2nro $< $@ $(NROFLAGS)
 	@echo "built ... $(notdir $(OUTPUT).ovl)"
-	@printf 'ULTR' >> $@
-	@printf "Ultrahand signature has been added.\n"
+	# Ryazhenka: trailing 4-byte signature is 'RYZH' (Ryazhahand) instead
+	# of 'ULTR' (Ultrahand) so Ryazha overlay-managers recognise this as
+	# Ryazha-native. nx-ovlloader does not validate this magic.
+	@printf 'RYZH' >> $@
+	@printf "Ryazhahand signature has been added.\n"
 
 $(OUTPUT).elf	: $(OFILES)
 

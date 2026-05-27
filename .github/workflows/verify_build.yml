@@ -1,0 +1,48 @@
+name: Verify build (PR smoke test)
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
+
+jobs:
+  smoke:
+    name: make (no zip, no upload)
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install extra switch libs
+        run: dkp-pacman -S --noconfirm --needed switch-libpng switch-curl switch-zziplib switch-mbedtls switch-libjpeg-turbo
+
+      - name: make
+        run: make -j$(nproc)
+
+      - name: Sanity check artifact + RYZH signature
+        run: |
+          set -e
+          test -f Overlay/ReverseNX-RT-ovl.ovl
+          ls -la Overlay/ReverseNX-RT-ovl.ovl
+          SIG=$(tail -c 4 Overlay/ReverseNX-RT-ovl.ovl)
+          echo "Trailing 4 bytes: $SIG"
+          if [ "$SIG" != "RYZH" ]; then
+            echo "::error::Expected RYZH signature, got: $SIG"
+            exit 1
+          fi
