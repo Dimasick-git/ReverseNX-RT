@@ -37,9 +37,9 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-APP_TITLE	:=	ReverseNX-RT (Ryazhenka)
-APP_AUTHOR	:=	Dimasick-git (Ryazhenka fork; tracks masagrator/ReverseNX-RT)
-APP_VERSION	:=	2.2.1+ryazha
+APP_TITLE	:=	ReverseNX-RT
+APP_AUTHOR	:=	Dimasick-git (fork; tracks masagrator/ReverseNX-RT)
+APP_VERSION	:=	2.2.1
 
 TARGET		:=	ReverseNX-RT-ovl
 BUILD		:=	build
