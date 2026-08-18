@@ -57,12 +57,11 @@ jobs:
           fi
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release $TAG already exists — skipping."
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists — refreshing its package."
           else
-            echo "Will publish: $TAG"
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Will publish a new release: $TAG"
           fi
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
@@ -89,17 +88,16 @@ jobs:
         if: steps.tag.outputs.should_release == 'true'
         run: |
           set -e
-          NAME="ReverseNX-RT-${APP_VERSION}-${GITHUB_SHA::7}"
-          DIST="dist/${NAME}"
+          NAME="ReverseNX-RT.zip"
+          DIST="dist/sd-root"
           mkdir -p "${DIST}/switch/.overlays"
           mkdir -p "${DIST}/config/ReverseNX-RT/lang"
           cp Overlay/ReverseNX-RT-ovl.ovl "${DIST}/switch/.overlays/"
           cp lang/*.json                   "${DIST}/config/ReverseNX-RT/lang/"
-          (cd dist && zip -r "${NAME}.zip" "${NAME}")
-          (cd dist && sha256sum "${NAME}.zip" > "${NAME}.zip.sha256")
-          echo "path=dist/${NAME}.zip"  >> "$GITHUB_OUTPUT"
-          echo "name=${NAME}.zip"        >> "$GITHUB_OUTPUT"
-          echo "sha256=$(cut -d' ' -f1 < dist/${NAME}.zip.sha256)" >> "$GITHUB_OUTPUT"
+          (cd "$DIST" && zip -qr "../${NAME}" .)
+          echo "path=dist/${NAME}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "dist/${NAME}" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Extract changelog section
         id: changelog
@@ -134,10 +132,33 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ReverseNX-RT ${{ steps.tag.outputs.tag }}
           body: ${{ steps.changelog.outputs.body }}
-          files: |
-            ${{ steps.zip.outputs.path }}
-            dist/${{ steps.zip.outputs.name }}.sha256
+          files: ${{ steps.zip.outputs.path }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Оставить один основной asset
+        uses: actions/github-script@v8
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          KEEP_ASSET: ${{ steps.zip.outputs.name }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.RELEASE_TAG,
+            });
+            for (const asset of release.data.assets) {
+              if (asset.name !== process.env.KEEP_ASSET) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id,
+                });
+              }
+            }
