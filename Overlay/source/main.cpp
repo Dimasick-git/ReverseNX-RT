@@ -14,13 +14,13 @@ bool check = false;
 bool SaltySD = false;
 bool bak = false;
 bool plugin = true;
-char saveChar[32];
-char DockedChar[32];
-char SystemChar[32];
-char HandheldDDR[32];
-char DockedDDR[32];
+std::string saveText;
+std::string dockedText;
+std::string systemText;
+std::string handheldDdrText;
+std::string dockedDdrText;
 uint64_t PID = 0;
-Handle remoteSharedMemory = 1;
+Handle remoteSharedMemory = INVALID_HANDLE;
 SharedMemory _sharedmemory = {};
 bool SharedMemoryUsed = false;
 
@@ -52,9 +52,13 @@ struct Shared {
 
 static_assert(sizeof(Shared) == 9);
 
-Shared* ReverseNX_RT;
+Shared* ReverseNX_RT = nullptr;
 
 bool writeSave() {
+	if (!PluginRunning || ReverseNX_RT == nullptr) {
+		return false;
+	}
+
 	uint64_t titid = 0;
 	if (R_FAILED(pmdmntGetProgramId(&titid, PID))) {
 		return false;
@@ -62,8 +66,8 @@ bool writeSave() {
 	char path[128];
 	DIR* dir = opendir("sdmc:/SaltySD/plugins/ReverseNX-RT/");
 	if (!dir) {
-		mkdir("sdmc:/SaltySD/plugins/", 777);
-		mkdir("sdmc:/SaltySD/plugins/ReverseNX-RT/", 777);
+		mkdir("sdmc:/SaltySD/plugins/", 0777);
+		mkdir("sdmc:/SaltySD/plugins/ReverseNX-RT/", 0777);
 	}
 	else closedir(dir);
 	snprintf(path, sizeof(path), "sdmc:/SaltySD/plugins/ReverseNX-RT/%016lX.dat", titid);
@@ -87,23 +91,33 @@ bool writeSave() {
 }
 
 bool LoadSharedMemory() {
-	if (SaltySD_Connect())
+	if (R_FAILED(SaltySD_Connect()))
 		return false;
 
-	SaltySD_GetSharedMemoryHandle(&remoteSharedMemory);
+	remoteSharedMemory = INVALID_HANDLE;
+	Result rc = SaltySD_GetSharedMemoryHandle(&remoteSharedMemory);
 	SaltySD_Term();
+	if (R_FAILED(rc) || remoteSharedMemory == INVALID_HANDLE)
+		return false;
 
 	shmemLoadRemote(&_sharedmemory, remoteSharedMemory, 0x1000, Perm_Rw);
-	if (!shmemMap(&_sharedmemory)) {
+	rc = shmemMap(&_sharedmemory);
+	if (R_SUCCEEDED(rc)) {
 		SharedMemoryUsed = true;
 		return true;
 	}
+
+	shmemClose(&_sharedmemory);
+	remoteSharedMemory = INVALID_HANDLE;
 	return false;
 }
 
 ptrdiff_t searchSharedMemoryBlock(uintptr_t base) {
+	if (base == 0)
+		return -1;
+
 	ptrdiff_t search_offset = 0;
-	while(search_offset < 0x1000) {
+	while (search_offset <= static_cast<ptrdiff_t>(0x1000 - sizeof(Shared))) {
 		uint32_t* MAGIC_shared = (uint32_t*)(base + search_offset);
 		if (*MAGIC_shared == 0x5452584E) {
 			return search_offset;
@@ -154,7 +168,7 @@ public:
 
 		auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::RES_DEFAULT);
 		clickableListItem2->setClickListener([this](u64 keys) { 
-			if ((keys & HidNpadButton_A) && PluginRunning) {
+			if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 				if (_isDocked) ReverseNX_RT->res.docked_res = res_mode_default;
 				else ReverseNX_RT->res.handheld_res = res_mode_default;
 				tsl::goBack();
@@ -170,7 +184,7 @@ public:
 			snprintf(Hz, sizeof(Hz), "%dx%d", resolutions[i].first, resolutions[i].second);
 			auto *clickableListItem = new tsl::elm::ListItem(Hz);
 			clickableListItem->setClickListener([this, i](u64 keys) { 
-				if ((keys & HidNpadButton_A) && PluginRunning) {
+				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 					if (_isDocked) ReverseNX_RT->res.docked_res = (res_mode)i;
 					else ReverseNX_RT->res.handheld_res = (res_mode)i;
 					tsl::goBack();
@@ -229,14 +243,15 @@ public:
 			}
 			else {
 				renderer->drawString(rnxs::INFO_PLUGIN_RUNNING.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
+				if (ReverseNX_RT == nullptr) return;
 				if (!(ReverseNX_RT->pluginActive)) renderer->drawString(rnxs::ERR_NO_MODE_CHECKED.c_str(), false, x, y+40, 18, renderer->a(0xF33F));
 				else {
-					renderer->drawString(SystemChar, false, x, y+42, 20, renderer->a(0xFFFF));
-					renderer->drawString(DockedChar, false, x, y+64, 20, renderer->a(0xFFFF));
+					renderer->drawString(systemText.c_str(), false, x, y+42, 20, renderer->a(0xFFFF));
+					renderer->drawString(dockedText.c_str(), false, x, y+64, 20, renderer->a(0xFFFF));
 					if (!(ReverseNX_RT->def)) {
 						if (ReverseNX_RT->wasDDRused) {
-							renderer->drawString(HandheldDDR, false, x, y+86, 20, renderer->a(0xFFFF));
-							renderer->drawString(DockedDDR, false, x, y+108, 20, renderer->a(0xFFFF));
+							renderer->drawString(handheldDdrText.c_str(), false, x, y+86, 20, renderer->a(0xFFFF));
+							renderer->drawString(dockedDdrText.c_str(), false, x, y+108, 20, renderer->a(0xFFFF));
 						}
 						else {
 							renderer->drawString(rnxs::INFO_DDR_NOT_CHECKED_LINE1.c_str(), false, x, y+86, 20, renderer->a(0xFFFF));
@@ -244,15 +259,15 @@ public:
 						}
 					}
 				}
-				renderer->drawString(saveChar, false, x, y+130, 20, renderer->a(0xFFFF));
+				renderer->drawString(saveText.c_str(), false, x, y+130, 20, renderer->a(0xFFFF));
 			}
-	}), 150);
+		}), 150);
 
-		if (PluginRunning && ReverseNX_RT->pluginActive) {
+		if (PluginRunning && ReverseNX_RT != nullptr && ReverseNX_RT->pluginActive) {
 
 			auto *clickableListItem = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_SYSTEM);
 			clickableListItem->setClickListener([](u64 keys) { 
-				if ((keys & HidNpadButton_A) && PluginRunning) {
+				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 					ReverseNX_RT->def = !(ReverseNX_RT->def);
 					tsl::swapTo<GuiTest>(1, 2, true);
 					return true;
@@ -267,7 +282,7 @@ public:
 
 				auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_MODE);
 				clickableListItem2->setClickListener([](u64 keys) { 
-					if ((keys & HidNpadButton_A) && PluginRunning) {
+					if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 						ReverseNX_RT->isDocked = !(ReverseNX_RT->isDocked);
 						return true;
 					}
@@ -279,7 +294,7 @@ public:
 				if (ReverseNX_RT->wasDDRused) {
 					auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_HANDHELD_DDR);
 					clickableListItem3->setClickListener([](u64 keys) { 
-						if ((keys & HidNpadButton_A) && PluginRunning) {
+						if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 							tsl::changeTo<ResolutionModeMenu>(false);
 							return true;
 						}
@@ -290,7 +305,7 @@ public:
 
 					auto *clickableListItem4 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_DOCKED_DDR);
 					clickableListItem4->setClickListener([](u64 keys) { 
-						if ((keys & HidNpadButton_A) && PluginRunning) {
+						if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 							tsl::changeTo<ResolutionModeMenu>(true);
 							return true;
 						}
@@ -303,10 +318,8 @@ public:
 
 			auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_SAVE);
 			clickableListItem3->setClickListener([](u64 keys) { 
-				if ((keys & HidNpadButton_A) && PluginRunning) {
-					if (writeSave())
-						snprintf(saveChar, sizeof(saveChar), "%s", rnxs::MSG_SAVED_OK.c_str());
-					else snprintf(saveChar, sizeof(saveChar), "%s", rnxs::MSG_SAVED_FAIL.c_str());
+				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
+					saveText = writeSave() ? rnxs::MSG_SAVED_OK : rnxs::MSG_SAVED_FAIL;
 					return true;
 				}
 				
@@ -328,32 +341,35 @@ public:
 		Result rc = pmdmntGetApplicationProcessId(&PID);
 		if (R_FAILED(rc) && PluginRunning) {
 			PluginRunning = false;
+			ReverseNX_RT = nullptr;
 			check = false;
 			closed = true;
 		}
 
-		if (PluginRunning) {
+		if (PluginRunning && ReverseNX_RT != nullptr) {
 			if (i > 9) {
 				_def = ReverseNX_RT->def;
 				_isDocked = ReverseNX_RT->isDocked;
 				i = 0;
 				
-				if (_def) sprintf(SystemChar, "%s", rnxs::STATUS_SYS_YES.c_str());
-				else sprintf(SystemChar, "%s", rnxs::STATUS_SYS_NO.c_str());
+				systemText = _def ? rnxs::STATUS_SYS_YES : rnxs::STATUS_SYS_NO;
 
 				if (_def) {
-					if (_isDocked) sprintf(DockedChar, "%s", rnxs::MODE_DOCKED.c_str());
-					else sprintf(DockedChar, "%s", rnxs::MODE_HANDHELD.c_str());
+					dockedText = _isDocked ? rnxs::MODE_DOCKED : rnxs::MODE_HANDHELD;
 				}
 				else {
-					if (_isDocked) sprintf(DockedChar, "%s", rnxs::MODE_FAKE_DOCKED.c_str());
-					else sprintf(DockedChar, "%s", rnxs::MODE_FAKE_HANDHELD.c_str());
+					dockedText = _isDocked ? rnxs::MODE_FAKE_DOCKED : rnxs::MODE_FAKE_HANDHELD;
 				}
 
-				if (!ReverseNX_RT->res.handheld_res) snprintf(HandheldDDR, sizeof(HandheldDDR), "%s", rnxs::HANDHELD_DDR_DEFAULT.c_str());
-				else snprintf(HandheldDDR, sizeof(HandheldDDR), "%s%dx%d", rnxs::HANDHELD_DDR_PREFIX.c_str(), resolutions[ReverseNX_RT->res.handheld_res].first, resolutions[ReverseNX_RT->res.handheld_res].second);
-				if (!ReverseNX_RT->res.docked_res) snprintf(DockedDDR, sizeof(DockedDDR), "%s", rnxs::DOCKED_DDR_DEFAULT.c_str());
-				else snprintf(DockedDDR, sizeof(DockedDDR), "%s%dx%d", rnxs::DOCKED_DDR_PREFIX.c_str(), resolutions[ReverseNX_RT->res.docked_res].first, resolutions[ReverseNX_RT->res.docked_res].second);
+				const auto formatResolution = [](res_mode mode, const std::string &fallback, const std::string &prefix) {
+					const auto index = static_cast<unsigned int>(mode);
+					if (index == res_mode_default || index >= res_mode_amount)
+						return fallback;
+					return prefix + std::to_string(resolutions[index].first) + "x" + std::to_string(resolutions[index].second);
+				};
+
+				handheldDdrText = formatResolution(ReverseNX_RT->res.handheld_res, rnxs::HANDHELD_DDR_DEFAULT, rnxs::HANDHELD_DDR_PREFIX);
+				dockedDdrText = formatResolution(ReverseNX_RT->res.docked_res, rnxs::DOCKED_DDR_DEFAULT, rnxs::DOCKED_DDR_PREFIX);
 			}
 			else i++;
 		}
@@ -394,49 +410,46 @@ public:
 	virtual void initServices() override {
 
 		// Ryazhenka: resolve system language and load lang/<code>.json
-		// in its own sm session before any UI element is drawn.
-		tsl::hlp::doWithSmSession([]{
-			u64 langCode = 0;
-			SetLanguage lang = SetLanguage_ENUS;
-			if (R_SUCCEEDED(setInitialize())) {
-				if (R_SUCCEEDED(setGetSystemLanguage(&langCode))) {
-					setMakeLanguage(langCode, &lang);
-				}
-				setExit();
+		// before any UI element is drawn. libtesla already mounted sdmc,
+		// and initServices itself runs inside an active sm session.
+		u64 langCode = 0;
+		SetLanguage lang = SetLanguage_ENUS;
+		if (R_SUCCEEDED(setInitialize())) {
+			if (R_SUCCEEDED(setGetSystemLanguage(&langCode))) {
+				setMakeLanguage(langCode, &lang);
 			}
-			switch (lang) {
-				case SetLanguage_RU: rnxs::loadLanguage("ru"); break;
-				default:             rnxs::loadLanguage("en"); break;
-			}
-		});
+			setExit();
+		}
+		switch (lang) {
+			case SetLanguage_RU: rnxs::loadLanguage("ru"); break;
+			default:             rnxs::loadLanguage("en"); break;
+		}
 
-		tsl::hlp::doWithSmSession([]{
-			
-			fsdevMountSdmc();
-			SaltySD = CheckPort();
-			if (!SaltySD) return;
+		SaltySD = CheckPort();
+		if (!SaltySD) return;
 
-			if (R_FAILED(pmdmntGetApplicationProcessId(&PID))) return;
-			check = true;
-			
-			if(!LoadSharedMemory()) return;
+		if (R_FAILED(pmdmntGetApplicationProcessId(&PID))) return;
+		check = true;
 
-			if (!PluginRunning) {
-				uintptr_t base = (uintptr_t)shmemGetAddr(&_sharedmemory);
-				ptrdiff_t rel_offset = searchSharedMemoryBlock(base);
-				if (rel_offset > -1) {
-					ReverseNX_RT = (Shared*)(base + rel_offset);
-					PluginRunning = true;
-				}		
-			}
-		
-		});
+		if (!LoadSharedMemory()) return;
+
+		uintptr_t base = reinterpret_cast<uintptr_t>(shmemGetAddr(&_sharedmemory));
+		ptrdiff_t rel_offset = searchSharedMemoryBlock(base);
+		if (rel_offset >= 0) {
+			ReverseNX_RT = reinterpret_cast<Shared*>(base + rel_offset);
+			PluginRunning = true;
+		}
 	
 	}  // Called at the start to initialize all services necessary for this Overlay
 	
 	virtual void exitServices() override {
-		shmemClose(&_sharedmemory);
-		fsdevUnmountDevice("sdmc");
+		PluginRunning = false;
+		ReverseNX_RT = nullptr;
+		if (SharedMemoryUsed) {
+			shmemClose(&_sharedmemory);
+			SharedMemoryUsed = false;
+			remoteSharedMemory = INVALID_HANDLE;
+		}
 	}  // Callet at the end to clean up all services previously initialized
 
 	virtual void onShow() override {}    // Called before overlay wants to change from invisible to visible state

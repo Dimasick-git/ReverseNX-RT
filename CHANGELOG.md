@@ -3,6 +3,32 @@
 Заметные изменения форка относительно [masagrator/ReverseNX-RT](https://github.com/masagrator/ReverseNX-RT) (и базы [ppkantorski/ReverseNX-RT](https://github.com/ppkantorski/ReverseNX-RT)) документируются здесь.
 Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 
+## [2.2.2] — 2026-09-11
+
+### Исправлено
+
+- Устранён воспроизводимый `2168-0002 (0x4A8)` / Data Abort в
+  `ReverseNX-RT-ovl`: русские статусные строки длиной до 47 байт
+  копировались через `sprintf` в 32-байтные буферы, а DDR-строки длиной
+  до 68 байт обрезались. Динамические статусы теперь хранятся в
+  `std::string` без переполнения и обрезания UTF-8.
+- Добавлены проверки указателя shared memory и диапазона индексов DDR до
+  разыменования/обращения к таблице разрешений.
+- Проверяется результат получения и отображения shared memory; при ошибке
+  handle корректно закрывается.
+- Убраны вложенные `smInitialize` и повторный mount/unmount `sdmc`:
+  lifecycle сервисов теперь соответствует контракту libtesla.
+- Сканирование magic больше не может принять неполную структуру у конца
+  4-КиБ shared-memory страницы.
+
+### Обновлено
+
+- `Atmosphere-libs` обновлён до актуального официального
+  `Atmosphere-NX/Atmosphere-libs`.
+- `libryazhahand` обновлён до актуального `Dimasick-git/libryazhahand`.
+- Минимальная версия SaltyNX в документации исправлена на 1.6.0+ для
+  совместимости с Atmosphère 1.10.0+.
+
 ## [2.2.1+ryazha] — 2026-05-27
 
 Первый релиз форка под брендом Ряженка. База — ppkantorski v2.2.1+
@@ -65,8 +91,9 @@
 
 ### Базовая совместимость
 
-- SaltyNX 1.4.3+.
+- SaltyNX 1.6.0+ при использовании Atmosphère 1.10.0+.
 - Atmosphère последней версии.
 - Совместимо с [Dimasick-git/Atmosphere](https://github.com/Dimasick-git/Atmosphere).
 
 [2.2.1+ryazha]: https://github.com/Dimasick-git/ReverseNX-RT/releases/tag/v2.2.1-ryazha
+[2.2.2]: https://github.com/Dimasick-git/ReverseNX-RT/releases/tag/v2.2.2

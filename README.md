@@ -56,7 +56,7 @@ masagrator. Если masagrator выпустит баг-фикс — он авт
 | **Подпись `ULTR` → `RYZH`** | `Overlay/Makefile`, `printf 'RYZH' >> $@` | Последние 4 байта `.ovl` — overlay magic. Ryazhahand-Overlay узнаёт наши `.ovl` как Ryazha-native. nx-ovlloader сам сигнатуру не валидирует, загрузка не ломается. |
 | **Полная локализация EN/RU** | `Overlay/source/rnxs_lang.{hpp,cpp}` + `lang/{en,ru}.json` | Все 30 UI-строк (заголовок, подзаголовки разрешений, пункты меню, статусные сообщения, режим, DDR) переводятся при старте оверлея. |
 | **Все `Ultrahand` → `Ryazhahand`** | Comments в `Overlay/Makefile`, документация, magic, наш namespace `rnxs::` | Чтобы форк не маскировался под upstream Ultrahand-овский стек. |
-| **Брендинг APP_TITLE** | `Overlay/Makefile:40` | `ReverseNX-RT (Ryazhenka)`, версия `2.2.1+ryazha`. |
+| **Брендинг APP_TITLE** | `Overlay/Makefile:40` | `ReverseNX-RT`, версия `2.2.2`. |
 | **Защищённый sync с masagrator** | `.github/workflows/sync_upstream.yml` | Ежедневно 03:00 UTC бот тянет `masagrator/master`, открывает PR. Наши файлы из `.github/sync-protected-paths.txt` остаются нашими. |
 
 ## Установка
@@ -68,7 +68,7 @@ masagrator. Если masagrator выпустит баг-фикс — он авт
 3. Дополнительно нужно установить **SaltyNX** (плагин-инжектор для игр) — без него оверлей покажет `SaltyNX не работает!`.
 4. Перезагрузка → открыть Tesla оверлей через `L+DPAD_DOWN+RStick` → выбрать `ReverseNX-RT`.
 
-**Требования**: SaltyNX 1.4.3+, Atmosphère последней версии, [nx-ovlloader (Ryazhenka)](https://github.com/Dimasick-git/nx-ovlloader) или совместимый.
+**Требования**: SaltyNX 1.6.0+, Atmosphère 1.10.0+ (или более старая совместимая версия), [nx-ovlloader (Ryazhenka)](https://github.com/Dimasick-git/nx-ovlloader) или совместимый.
 
 ## Использование
 
