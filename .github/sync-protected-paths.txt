@@ -28,6 +28,8 @@ Overlay/source/main.cpp
 
 # Submodule swap libultrahand -> libryazhahand
 .gitmodules
+Overlay/libs/libryazhahand
+Overlay/libs/Atmosphere-libs
 
 # Reproducible builds across OSes
 .gitattributes

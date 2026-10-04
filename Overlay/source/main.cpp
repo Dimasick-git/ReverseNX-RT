@@ -166,7 +166,7 @@ public:
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 
-		auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::RES_DEFAULT);
+		auto *clickableListItem2 = new tsl::elm::CompactListItem(rnxs::RES_DEFAULT);
 		clickableListItem2->setClickListener([this](u64 keys) { 
 			if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 				if (_isDocked) ReverseNX_RT->res.docked_res = res_mode_default;
@@ -182,7 +182,7 @@ public:
 		for (uint32_t i = 1; i < res_mode_amount; i++) {
 			char Hz[] = "1920x1080";
 			snprintf(Hz, sizeof(Hz), "%dx%d", resolutions[i].first, resolutions[i].second);
-			auto *clickableListItem = new tsl::elm::ListItem(Hz);
+			auto *clickableListItem = new tsl::elm::CompactListItem(Hz);
 			clickableListItem->setClickListener([this, i](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 					if (_isDocked) ReverseNX_RT->res.docked_res = (res_mode)i;
@@ -213,6 +213,27 @@ public:
 
 class GuiTest : public tsl::Gui {
 public:
+    tsl::elm::CompactDescription* statusDescription = nullptr;
+
+    std::string statusText() const {
+        if (!SaltySD) return rnxs::ERR_SALTYNX_NOT_WORKING;
+        if (!check) return closed ? rnxs::ERR_GAME_CLOSED : rnxs::ERR_GAME_NOT_RUNNING;
+        if (!PluginRunning) return rnxs::INFO_GAME_RUNNING + "\n" + rnxs::ERR_PLUGIN_NOT_RUNNING;
+        std::string text = rnxs::INFO_PLUGIN_RUNNING;
+        if (ReverseNX_RT) {
+            if (!ReverseNX_RT->pluginActive) text += "\n" + rnxs::ERR_NO_MODE_CHECKED;
+            else {
+                text += "\n" + systemText + "\n" + dockedText;
+                if (!ReverseNX_RT->def) {
+                    if (ReverseNX_RT->wasDDRused) text += "\n" + handheldDdrText + "\n" + dockedDdrText;
+                    else text += "\n" + rnxs::INFO_DDR_NOT_CHECKED_LINE1 + " " + rnxs::INFO_DDR_NOT_CHECKED_LINE2;
+                }
+            }
+        }
+        if (!saveText.empty()) text += "\n" + saveText;
+        return text;
+    }
+
 	GuiTest(u8 arg1, u8 arg2, bool arg3) {}
 
 	// Called when this Gui gets loaded to create the UI
@@ -225,47 +246,12 @@ public:
 		// A list that can contain sub elements and handles scrolling
 		auto list = new tsl::elm::List();
 		
-		list->addItem(new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-			if (!SaltySD) {
-				renderer->drawString(rnxs::ERR_SALTYNX_NOT_WORKING.c_str(), false, x, y+50, 20, renderer->a(0xF33F));
-			}
-			else if (!check) {
-				if (closed) {
-					renderer->drawString(rnxs::ERR_GAME_CLOSED.c_str(), false, x, y+20, 19, renderer->a(0xF33F));
-				}
-				else {
-					renderer->drawString(rnxs::ERR_GAME_NOT_RUNNING.c_str(), false, x, y+20, 19, renderer->a(0xF33F));
-				}
-			}
-			else if (!PluginRunning) {
-				renderer->drawString(rnxs::INFO_GAME_RUNNING.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
-				renderer->drawString(rnxs::ERR_PLUGIN_NOT_RUNNING.c_str(), false, x, y+40, 20, renderer->a(0xF33F));
-			}
-			else {
-				renderer->drawString(rnxs::INFO_PLUGIN_RUNNING.c_str(), false, x, y+20, 20, renderer->a(0xFFFF));
-				if (ReverseNX_RT == nullptr) return;
-				if (!(ReverseNX_RT->pluginActive)) renderer->drawString(rnxs::ERR_NO_MODE_CHECKED.c_str(), false, x, y+40, 18, renderer->a(0xF33F));
-				else {
-					renderer->drawString(systemText.c_str(), false, x, y+42, 20, renderer->a(0xFFFF));
-					renderer->drawString(dockedText.c_str(), false, x, y+64, 20, renderer->a(0xFFFF));
-					if (!(ReverseNX_RT->def)) {
-						if (ReverseNX_RT->wasDDRused) {
-							renderer->drawString(handheldDdrText.c_str(), false, x, y+86, 20, renderer->a(0xFFFF));
-							renderer->drawString(dockedDdrText.c_str(), false, x, y+108, 20, renderer->a(0xFFFF));
-						}
-						else {
-							renderer->drawString(rnxs::INFO_DDR_NOT_CHECKED_LINE1.c_str(), false, x, y+86, 20, renderer->a(0xFFFF));
-							renderer->drawString(rnxs::INFO_DDR_NOT_CHECKED_LINE2.c_str(), false, x, y+108, 20, renderer->a(0xFFFF));							
-						}
-					}
-				}
-				renderer->drawString(saveText.c_str(), false, x, y+130, 20, renderer->a(0xFFFF));
-			}
-		}), 150);
+        statusDescription = new tsl::elm::CompactDescription(statusText());
+        list->addItem(statusDescription);
 
 		if (PluginRunning && ReverseNX_RT != nullptr && ReverseNX_RT->pluginActive) {
 
-			auto *clickableListItem = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_SYSTEM);
+			auto *clickableListItem = new tsl::elm::CompactListItem(rnxs::ITEM_CHANGE_SYSTEM);
 			clickableListItem->setClickListener([](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 					ReverseNX_RT->def = !(ReverseNX_RT->def);
@@ -280,7 +266,7 @@ public:
 
 			if (!(ReverseNX_RT->def)) {
 
-				auto *clickableListItem2 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_MODE);
+				auto *clickableListItem2 = new tsl::elm::CompactListItem(rnxs::ITEM_CHANGE_MODE);
 				clickableListItem2->setClickListener([](u64 keys) { 
 					if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 						ReverseNX_RT->isDocked = !(ReverseNX_RT->isDocked);
@@ -292,7 +278,7 @@ public:
 				list->addItem(clickableListItem2);
 
 				if (ReverseNX_RT->wasDDRused) {
-					auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_HANDHELD_DDR);
+					auto *clickableListItem3 = new tsl::elm::CompactListItem(rnxs::ITEM_CHANGE_HANDHELD_DDR);
 					clickableListItem3->setClickListener([](u64 keys) { 
 						if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 							tsl::changeTo<ResolutionModeMenu>(false);
@@ -303,7 +289,7 @@ public:
 					});
 					list->addItem(clickableListItem3);
 
-					auto *clickableListItem4 = new tsl::elm::ListItem(rnxs::ITEM_CHANGE_DOCKED_DDR);
+					auto *clickableListItem4 = new tsl::elm::CompactListItem(rnxs::ITEM_CHANGE_DOCKED_DDR);
 					clickableListItem4->setClickListener([](u64 keys) { 
 						if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 							tsl::changeTo<ResolutionModeMenu>(true);
@@ -316,7 +302,7 @@ public:
 				}
 			}
 
-			auto *clickableListItem3 = new tsl::elm::ListItem(rnxs::ITEM_SAVE);
+			auto *clickableListItem3 = new tsl::elm::CompactListItem(rnxs::ITEM_SAVE);
 			clickableListItem3->setClickListener([](u64 keys) { 
 				if ((keys & HidNpadButton_A) && PluginRunning && ReverseNX_RT != nullptr) {
 					saveText = writeSave() ? rnxs::MSG_SAVED_OK : rnxs::MSG_SAVED_FAIL;
@@ -374,6 +360,7 @@ public:
 			else i++;
 		}
 	
+        if (statusDescription) statusDescription->setText(statusText());
 	}
 
 	// Called once every frame to handle inputs not handled by other UI elements

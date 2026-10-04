@@ -39,7 +39,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 APP_TITLE	:=	ReverseNX-RT
 APP_AUTHOR	:=	Dimasick-git (fork; tracks masagrator/ReverseNX-RT)
-APP_VERSION	:=	2.2.2
+APP_VERSION	:=	2.2.3
 
 TARGET		:=	ReverseNX-RT-ovl
 BUILD		:=	build

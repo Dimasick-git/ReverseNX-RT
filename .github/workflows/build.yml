@@ -1,4 +1,4 @@
-name: Build
+name: Build & Release
 
 defaults:
   run:
@@ -6,62 +6,101 @@ defaults:
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - 'CONTRIBUTING.md'
-      - 'docs/**'
-      - '.github/sync-protected-paths.txt'
+    branches: ['**']
+    tags: ['v*']
   pull_request:
-    branches: [main]
-  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build ReverseNX-RT-ovl
     runs-on: ubuntu-latest
-    container:
-      image: devkitpro/devkita64:latest
+    container: devkitpro/devkita64:latest
 
     steps:
+      - name: Install 7z
+        run: apt-get update -qq && apt-get install -y p7zip-full
+
       - name: Checkout (with submodules)
         uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Mark workspace as safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Fix git safe.directory
+        run: git config --global --add safe.directory '*'
 
-      - name: Install extra switch libs
-        run: dkp-pacman -S --noconfirm --needed switch-libpng switch-curl switch-zziplib switch-mbedtls switch-libjpeg-turbo
-
-      - name: Show APP_VERSION
+      - name: Build libnx with HOS 23 APIs
         run: |
-          APP_VERSION=$(grep -E '^APP_VERSION\s*:=' Overlay/Makefile | sed -E 's/.*:=\s*//;s/\s*$//')
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          echo "Building APP_VERSION=$APP_VERSION"
+          git clone https://github.com/switchbrew/libnx.git "$RUNNER_TEMP/libnx"
+          git -C "$RUNNER_TEMP/libnx" checkout --detach feebd026ca0f5dcc2119f46ad8e0d16ad3dd4973
+          make -C "$RUNNER_TEMP/libnx" -j"$(nproc)"
+          make -C "$RUNNER_TEMP/libnx" install
+          "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-gcc" --version
 
-      - name: make
-        run: make -j$(nproc)
-
-      - name: Package dist zip
+      - name: Build and verify overlay
         run: |
-          set -e
-          NAME="ReverseNX-RT-${APP_VERSION}-${GITHUB_SHA::7}"
-          DIST="dist/${NAME}"
-          mkdir -p "${DIST}/switch/.overlays"
-          mkdir -p "${DIST}/config/ReverseNX-RT/lang"
-          cp Overlay/ReverseNX-RT-ovl.ovl "${DIST}/switch/.overlays/"
-          cp lang/*.json                   "${DIST}/config/ReverseNX-RT/lang/"
-          (cd dist && zip -r "${NAME}.zip" "${NAME}")
-          ls -la dist/
+          make -j"$(nproc)"
+          python3 - <<'PY'
+          from pathlib import Path
+          data = Path('Overlay/ReverseNX-RT-ovl.ovl').read_bytes()
+          assert data[16:20] == b'NRO0'
+          assert data[-4:] == b'RYZH'
+          PY
+          mkdir -p dist/sd-root/switch/.overlays
+          cp Overlay/ReverseNX-RT-ovl.ovl dist/sd-root/switch/.overlays/
+          mkdir -p dist/sd-root/config/ReverseNX-RT/lang
+          cp lang/*.json dist/sd-root/config/ReverseNX-RT/lang/
+          cd dist/sd-root
+          7z a ../ReverseNX-RT.zip ./switch ./config
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ReverseNX-RT-${{ env.APP_VERSION }}-${{ github.run_number }}
-          path: dist/*.zip
+          name: ReverseNX-RT
+          path: dist/ReverseNX-RT.zip
           if-no-files-found: error
-          retention-days: 30
+
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ReverseNX-RT
+
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ReverseNX-RT ${{ steps.tag.outputs.tag }}
+          generate_release_notes: false
+          body: |
+            Обновлена libryazhahand. Компактный текст и элементы в оверлее.
+          files: ReverseNX-RT.zip
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,7 @@
 
 build/
+Out/
+dist/
 
 *.ovl
 
@@ -11,4 +13,3 @@ build/
 
 # Local-only commit message scratch file
 .git-commit-msg.txt
-
