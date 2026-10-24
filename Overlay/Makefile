@@ -51,6 +51,9 @@ NO_ICON		:=  1
 
 # Ryazhenka: swapped ppkantorski/libultrahand for our drop-in fork
 # Dimasick-git/libryazhahand (same API/namespaces, ryazhahand.mk ≡ ultrahand.mk).
+# Glass under the UI (libryazhahand libglass): the GPU presents the frame over a live blurred game frame.
+USING_GLASS_DIRECTIVE := 1
+
 include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
 
 #---------------------------------------------------------------------------------
