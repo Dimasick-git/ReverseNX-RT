@@ -3,4 +3,4 @@
 	url = https://github.com/Atmosphere-NX/Atmosphere-libs
 [submodule "Overlay/libs/libryazhahand"]
 	path = Overlay/libs/libryazhahand
-	url = https://github.com/Dimasick-git/libryazhahand.git
+	url = https://github.com/Dimasick-git/libryazhahand-deko.git
